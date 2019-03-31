@@ -53,34 +53,40 @@ import com.qualcomm.robotcore.util.Range;
 @Autonomous(name="Basic: Linear OpMode", group="Linear Opmode")
 @Disabled
 public class Forward extends LinearOpMode {
-double power = 0.5;
+                     double power = 1;
                      Dcmotor Front_Right
-                             Dcmotor Front_Left
-                                     Dcmotor Back_Right
-                                             Dcmotor Back_Right
+                     Dcmotor Front_Left
+                     Dcmotor Back_Right
+                     Dcmotor Back_Right
 
-        Front_Right = hardwareMap.dcMotor.get("Front_Right");
+    Front_Right = hardwareMap.dcMotor.get("Front_Right");
     Front_Left = hardwareMap.dcMotor.get("Front_Left");
     Back_Right = hardwareMap.dcMotor.get("Back_Right");
     Back_Left = hardwareMap.dcMotor.get("Back_Left");
+
+
     Back_Left.setDirection(DcMotorSimple.Direction.REVERSE);
-        Front_Left.setDirection(DcMotorSimple.Direction.REVERSE);
+    Front_Left.setDirection(DcMotorSimple.Direction.REVERSE);
+
+
         waitForStart();
+
         runtime.reset();
 
-
-        Front_Right.setpower(power);
-    Front_Left.setpower(power);
-                Back_Right.setpower(power);
-    Back_Left.setpower(power);
+Front_Right.setpower(power);
+Front_Left.setpower(power);
+Back_Right.setpower(power);
+Back_Left.setpower(power);
 
     sleep(2000);
-power = 0;
 
-     Front_Right.setpower(power);
-    Front_Left.setpower(power);
-                Back_Right.setpower(power);
-    Back_Left.setpower(power);
+    --power;
+
+Front_Right.setpower(power);
+Front_Left.setpower(power);
+Back_Right.setpower(power);
+Back_Left.setpower(power);
+
 
 
 
