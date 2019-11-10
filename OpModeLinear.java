@@ -57,6 +57,7 @@ public class OpModeLinear extends LinearOpMode {
     double angle;
     double x, y, fieldwidth, fieldlength;
     BNO055IMU imu;
+    private Rev2mDistanceSensor;
 
     @Override
     public void runOpMode() {
@@ -80,6 +81,9 @@ public class OpModeLinear extends LinearOpMode {
         imu.initialize(parameters);
         telemetry.addData("Mode", "calibrating...");
         telemetry.update();
+        sensorRange = hardwareMap.get(DistanceSensor.class, "sensor_range");
+        Rev2mDistanceSensor sensorTimeOfFlight = (Rev2mDistanceSensor)sensorRange;
+
         while (!isStopRequested() && !imu.isGyroCalibrated()) {
             sleep(50);
             idle();
@@ -103,6 +107,9 @@ public class OpModeLinear extends LinearOpMode {
             sleep(5000);
             telemetry.addData("Status", "Finished");
             telemetry.update();
+            telemetry.addData("deviceName",sensorRange.getDeviceName() );
+            telemetry.addData("ID", String.format("%x", sensorTimeOfFlight.getModelID()));
+            telemetry.addData("did time out", Boolean.toString(sensorTimeOfFlight.didTimeoutOccur()));
         }
     }
     public void moveTo(double destx, double desty) {
