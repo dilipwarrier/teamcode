@@ -38,12 +38,18 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
 import com.qualcomm.hardware.bosch.BNO055IMU;
+
+
+import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.AxesOrder;
 import org.firstinspires.ftc.robotcore.external.navigation.AxesReference;
 import org.firstinspires.ftc.robotcore.external.navigation.Orientation;
 import org.firstinspires.ftc.robotcore.external.navigation.Position;
 import org.firstinspires.ftc.robotcore.external.navigation.Velocity;
+import org.firstinspires.ftc.robotcore.internal.files.DataLogger;
+
+import java.util.logging.Logger;
 
 @Autonomous(name="OpModeLinear", group="Linear Opmode")
 //@Disabled
@@ -57,7 +63,7 @@ public class OpModeLinear extends LinearOpMode {
     double angle;
     double x, y, fieldwidth, fieldlength;
     BNO055IMU imu;
-    private Rev2mDistanceSensor;
+    DataLogger datalog;
 
     @Override
     public void runOpMode() {
@@ -81,9 +87,6 @@ public class OpModeLinear extends LinearOpMode {
         imu.initialize(parameters);
         telemetry.addData("Mode", "calibrating...");
         telemetry.update();
-        sensorRange = hardwareMap.get(DistanceSensor.class, "sensor_range");
-        Rev2mDistanceSensor sensorTimeOfFlight = (Rev2mDistanceSensor)sensorRange;
-
         while (!isStopRequested() && !imu.isGyroCalibrated()) {
             sleep(50);
             idle();
@@ -97,19 +100,16 @@ public class OpModeLinear extends LinearOpMode {
         runtime.reset();
         if(opModeIsActive()) {
             turn(90);
-            Orientation angles = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES);
-            telemetry.addData("Turned:", angles.firstAngle);
-            telemetry.update();
-            sleep(2000);
-            angles = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES);
-            telemetry.addData("Waited Measure:", angles.firstAngle);
-            telemetry.update();
-            sleep(5000);
-            telemetry.addData("Status", "Finished");
-            telemetry.update();
-            telemetry.addData("deviceName",sensorRange.getDeviceName() );
-            telemetry.addData("ID", String.format("%x", sensorTimeOfFlight.getModelID()));
-            telemetry.addData("did time out", Boolean.toString(sensorTimeOfFlight.didTimeoutOccur()));
+            /*advance(24);
+            int flpos = frontLeft.getCurrentPosition();
+            int frpos = frontRight.getCurrentPosition();
+            int blpos = backLeft.getCurrentPosition();
+            int brpos = backRight.getCurrentPosition();
+            telemetry.addData("Front Left Position", flpos);
+            telemetry.addData("Front Right Position", frpos);
+            telemetry.addData("Back Left Position", blpos);
+            telemetry.addData("Back Right Position", brpos);
+            sleep(5000);*/
         }
     }
     public void moveTo(double destx, double desty) {
@@ -133,7 +133,8 @@ public class OpModeLinear extends LinearOpMode {
             angDif += 360;
         }
         if(angDif > 180) {
-            angDif -= 180;
+            angDif -= 360;
+            angDif *= -1;
             dirLeft();
         }else {
             dirRight();
@@ -143,6 +144,21 @@ public class OpModeLinear extends LinearOpMode {
         angle = rotToAng;
         sleep((long)waitTime);
         setPower(0);
+        sleep(2000);
+        Orientation angles = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES);
+        float actualAngle = angles.firstAngle;
+        actualAngle = 360 - actualAngle;
+        actualAngle += 270;
+        while(actualAngle >= 360){
+            actualAngle -= 360;
+        }
+        double correction = Math.abs(actualAngle - rotToAng);
+        if(correction < 5 || correction > 355) {
+            return;
+        }else{
+            angle = actualAngle;
+            turn(rotToAng);
+        }
     }
     public void advance(double distance) {
         dirForward();
