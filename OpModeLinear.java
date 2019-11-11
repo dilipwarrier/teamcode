@@ -44,7 +44,8 @@ import org.firstinspires.ftc.robotcore.external.navigation.AxesReference;
 import org.firstinspires.ftc.robotcore.external.navigation.Orientation;
 import org.firstinspires.ftc.robotcore.external.navigation.Position;
 import org.firstinspires.ftc.robotcore.external.navigation.Velocity;
-
+import com.qualcomm.robotcore.hardware.Rev2mDistanceSensor;
+import com.qualcomm.robotcore.hardware.ColorSensor;
 @Autonomous(name="OpModeLinear", group="Linear Opmode")
 //@Disabled
 public class OpModeLinear extends LinearOpMode {
@@ -58,6 +59,7 @@ public class OpModeLinear extends LinearOpMode {
     double x, y, fieldwidth, fieldlength;
     BNO055IMU imu;
     private Rev2mDistanceSensor;
+    private ColorSensor;
 
     @Override
     public void runOpMode() {
@@ -83,6 +85,7 @@ public class OpModeLinear extends LinearOpMode {
         telemetry.update();
         sensorRange = hardwareMap.get(DistanceSensor.class, "sensor_range");
         Rev2mDistanceSensor sensorTimeOfFlight = (Rev2mDistanceSensor)sensorRange;
+        ColorSensor = hardwareMap.colorSensor.get("color");
 
         while (!isStopRequested() && !imu.isGyroCalibrated()) {
             sleep(50);
