@@ -38,21 +38,24 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
 import com.qualcomm.hardware.bosch.BNO055IMU;
+import com.qualcomm.robotcore.hardware.ColorSensor;
+import com.qualcomm.robotcore.hardware.DistanceSensor;
+import com.qualcomm.robotcore.hardware.I2cDevice;
+import com.qualcomm.robotcore.hardware.Servo;
 
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.AxesOrder;
 import org.firstinspires.ftc.robotcore.external.navigation.AxesReference;
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Orientation;
 import org.firstinspires.ftc.robotcore.external.navigation.Position;
 import org.firstinspires.ftc.robotcore.external.navigation.Velocity;
 import org.firstinspires.ftc.robotcore.internal.files.DataLogger;
-
 import java.util.logging.Logger;
 
 @Autonomous(name="OpModeLinear", group="Linear Opmode")
-//@Disabled
 public class OpModeLinear extends LinearOpMode {
 
     private ElapsedTime runtime = new ElapsedTime();
@@ -60,8 +63,12 @@ public class OpModeLinear extends LinearOpMode {
     private DcMotor frontRight = null;
     private DcMotor backLeft = null;
     private DcMotor backRight = null;
+    DcMotor vert_motor = null;
+    Servo armservo = null;
     double angle;
     double x, y, fieldwidth, fieldlength;
+    ColorSensor color_sensor;
+    DistanceSensor dist_sensor;
     BNO055IMU imu;
     DataLogger datalog;
 
@@ -69,15 +76,19 @@ public class OpModeLinear extends LinearOpMode {
     public void runOpMode() {
         telemetry.addData("Status", "Initialized");
         telemetry.update();
-        angle = 270;
-        x = 0;
-        y = 0;
+        angle = 0;
+        x = 10;
+        y = 108;
         fieldwidth = 144;
         fieldlength = 144;
         frontLeft = hardwareMap.get(DcMotor.class, "front_left");
         frontRight = hardwareMap.get(DcMotor.class, "front_right");
         backLeft = hardwareMap.get(DcMotor.class, "back_left");
         backRight = hardwareMap.get(DcMotor.class, "back_right");
+        color_sensor = hardwareMap.get(ColorSensor.class,"clr");
+        vert_motor = hardwareMap.get(DcMotor.class, "vert_motor");
+        armservo = hardwareMap.get(Servo.class, "arm_servo");
+        dist_sensor = hardwareMap.get(DistanceSensor.class, "distance");
         BNO055IMU.Parameters parameters = new BNO055IMU.Parameters();
         parameters.mode = BNO055IMU.SensorMode.IMU;
         parameters.angleUnit = BNO055IMU.AngleUnit.DEGREES;
@@ -99,17 +110,19 @@ public class OpModeLinear extends LinearOpMode {
         waitForStart();
         runtime.reset();
         if(opModeIsActive()) {
-            turn(90);
-            /*advance(24);
-            int flpos = frontLeft.getCurrentPosition();
-            int frpos = frontRight.getCurrentPosition();
-            int blpos = backLeft.getCurrentPosition();
-            int brpos = backRight.getCurrentPosition();
-            telemetry.addData("Front Left Position", flpos);
-            telemetry.addData("Front Right Position", frpos);
-            telemetry.addData("Back Left Position", blpos);
-            telemetry.addData("Back Right Position", brpos);
+            /*moveTo(40, 108);
+            double red = color_sensor.red();
+            double blue = color_sensor.blue();
+            double green = color_sensor.green();
+            telemetry.addData("Red:", red);
+            telemetry.addData("Green:", green);
+            telemetry.addData("Blue:", blue);
+            telemetry.update();
             sleep(5000);*/
+            strafe();
+            setPower(0.5);
+            sleep(3000);
+            setPower(0);
         }
     }
     public void moveTo(double destx, double desty) {
@@ -118,6 +131,11 @@ public class OpModeLinear extends LinearOpMode {
         double angRot = Math.toDegrees(Math.atan(ydif/xdif));
         if(destx < x) {
             angRot += 180;
+        }
+        if(angRot < 0){
+            angRot += 360;
+        }else if(angRot >= 360) {
+            angRot -= 360;
         }
         telemetry.addData("Degree of Rotation", "{%.2f}", angRot);
         telemetry.update();
@@ -148,22 +166,22 @@ public class OpModeLinear extends LinearOpMode {
         Orientation angles = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES);
         float actualAngle = angles.firstAngle;
         actualAngle = 360 - actualAngle;
-        actualAngle += 270;
-        while(actualAngle >= 360){
+        if(actualAngle >= 360){
             actualAngle -= 360;
         }
         double correction = Math.abs(actualAngle - rotToAng);
+        angle = actualAngle;
+        sleep(1000);
         if(correction < 5 || correction > 355) {
             return;
         }else{
-            angle = actualAngle;
             turn(rotToAng);
         }
     }
     public void advance(double distance) {
         dirForward();
         setPower(0.5);
-        double waitTime = distance / 14.1 * 1000;
+        double waitTime = distance / 13 * 1000;
         sleep((long)waitTime);
         setPower(0);
     }
