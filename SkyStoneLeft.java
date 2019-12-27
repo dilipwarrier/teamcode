@@ -29,6 +29,8 @@
 
 package org.firstinspires.ftc.teamcode;
 
+import android.graphics.Color;
+
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
@@ -43,7 +45,6 @@ import com.qualcomm.robotcore.hardware.DistanceSensor;
 import com.qualcomm.robotcore.hardware.I2cDevice;
 import com.qualcomm.robotcore.hardware.Servo;
 
-
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.AxesOrder;
@@ -52,43 +53,69 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Orientation;
 import org.firstinspires.ftc.robotcore.external.navigation.Position;
 import org.firstinspires.ftc.robotcore.external.navigation.Velocity;
-import org.firstinspires.ftc.robotcore.internal.files.DataLogger;
-import java.util.logging.Logger;
 
-@Autonomous(name="StoneLeft", group="Linear Opmode")
-public class StoneLeft extends LinearOpMode {
+
+//ALL MEASUREMENTS IN INCHES
+
+
+@Autonomous(name="SkyStoneLeft", group="Linear Opmode")
+public class SkyStoneLeft extends LinearOpMode{
 
     private ElapsedTime runtime = new ElapsedTime();
     private DcMotor frontLeft = null;
     private DcMotor frontRight = null;
     private DcMotor backLeft = null;
     private DcMotor backRight = null;
-    DcMotor vert_motor = null;
-    Servo armservo = null;
-    double angle;
+    Servo leftClip = null;
+    Servo rightClip = null;
+    //DcMotor vert_motor = null;
+    //DcMotor horz_motor = null;
+    //Servo armservo = null;
+    double startangle, angle;
     double x, y, fieldwidth, fieldlength;
+    double skystoneColorThreshold, distanceBeforeBlocks, inchesStrafePerSec, degreesTurnPerSec, inchesAdvancePerSec, edgeToBlocks, robotWidth, robotLength;
     ColorSensor color_sensor;
     DistanceSensor dist_sensor;
     BNO055IMU imu;
-    DataLogger datalog;
 
     @Override
     public void runOpMode() {
-        telemetry.addData("Status", "Initialized");
-        telemetry.update();
+
+
+        //Constant initializations
+        skystoneColorThreshold = 0;
+        distanceBeforeBlocks = 10;
+        inchesStrafePerSec = 28;
+        degreesTurnPerSec = 80;
+        inchesAdvancePerSec = 31;
+        edgeToBlocks = 48;
+        robotLength = 18;
+        robotWidth = 16;
+
+
+        //Coordinate reference frame initialization
         angle = 0;
-        x = 10;
-        y = 36;
+        startangle = angle;
+        x = robotLength / 2;
+        y = 108;
         fieldwidth = 144;
         fieldlength = 144;
+
+        //Sensor and motor initializations
         frontLeft = hardwareMap.get(DcMotor.class, "front_left");
         frontRight = hardwareMap.get(DcMotor.class, "front_right");
         backLeft = hardwareMap.get(DcMotor.class, "back_left");
         backRight = hardwareMap.get(DcMotor.class, "back_right");
         color_sensor = hardwareMap.get(ColorSensor.class,"clr");
-        vert_motor = hardwareMap.get(DcMotor.class, "vert_motor");
-        armservo = hardwareMap.get(Servo.class, "arm_servo");
+        leftClip = hardwareMap.get(Servo.class, "left_clip");
+        rightClip = hardwareMap.get(Servo.class, "right_clip");
+        //vert_motor = hardwareMap.get(DcMotor.class, "vert_motor");
+        //horz_motor = hardwareMap.get(DcMotor.class, "horz_motor");
+        //armservo = hardwareMap.get(Servo.class, "arm_servo");
         dist_sensor = hardwareMap.get(DistanceSensor.class, "distance");
+
+
+        //Gyro initialization
         BNO055IMU.Parameters parameters = new BNO055IMU.Parameters();
         parameters.mode = BNO055IMU.SensorMode.IMU;
         parameters.angleUnit = BNO055IMU.AngleUnit.DEGREES;
@@ -106,14 +133,87 @@ public class StoneLeft extends LinearOpMode {
         telemetry.addData("imu calib status", imu.getCalibrationStatus().toString());
         telemetry.update();
 
+
         // Wait for the game to start (driver presses PLAY)
         waitForStart();
         runtime.reset();
         if(opModeIsActive()) {
-            moveTo(24, 36);
-            moveTo(24, 72);
+            /*double red = color_sensor.red();
+            double green = color_sensor.green();
+            double blue = color_sensor.blue();
+            telemetry.addData("Red:", red);
+            telemetry.addData("Green:", green);
+            telemetry.addData("Blue:", blue);
+            telemetry.update();*/
+            leftClip.setPosition(1);
+            rightClip.setPosition(0);
+            double distance = dist_sensor.getDistance(DistanceUnit.INCH);
+            dirForward();
+            while(distance > distanceBeforeBlocks) {
+                setPower(1);
+                distance = dist_sensor.getDistance(DistanceUnit.INCH);
+            }
+            setPower(0);
+            turn(0, 0);
+            //Because coordinates are of center of robot, to have front of robot 3 inches away
+            //from 48 inches (where the blocks are), it must be at 48 - 8 (half of robot) - 3 = 37 inches
+            x = edgeToBlocks - robotLength / 2 - 3;
+            strafeAmount(12, 1);
+            boolean skystonefound = false;
+            //Strafe until detect change in color from yellow to black(skystone color)
+            double starttime = System.currentTimeMillis();
+            setPower(0.25);
+            dirStrafeRight();
+            double red = color_sensor.red();
+            double green = color_sensor.green();
+            double blue = color_sensor.blue();
+            double distanceTrav = 0;
+            while(!skystonefound || green <= skystoneColorThreshold) {
+                setPower(0.25);
+                dirStrafeRight();
+                green = color_sensor.green();
+                distanceTrav = (System.currentTimeMillis() - starttime) / 1000 * inchesStrafePerSec / 4;
+                if(!skystonefound) {
+                    //We used the red value from color sensor to distinguish skystone color
+                    if (green <= skystoneColorThreshold) {
+                        skystonefound = true;
+                        telemetry.addData("Skystone found", 0);
+                        telemetry.update();
+                    }
+                }
+            }
+            if(skystonefound) {
+                y += distanceTrav;
+            }
+            telemetry.addData("Current y value: ", y);
+            sleep(3000);
+            advance(18);
+            x += 18;
+            leftClip.setPosition(0);
+            rightClip.setPosition(1);
+            sleep(1500);
+            moveTo(12, y);
+            moveTo(36, 65);
+            turn(270, 0);
         }
     }
+
+    //Strafes inches in certain direction. 0 means right while 1 means left
+    public void strafeAmount(double inchesStrafe, int direction) {
+        if(direction == 1) {
+            dirStrafeLeft();
+            y -= inchesStrafe;
+        }else {
+            dirStrafeRight();
+            y += inchesStrafe;
+        }
+        setPower(1);
+        double timeWait = inchesStrafe / inchesStrafePerSec * 1000;
+        sleep((long)timeWait);
+        setPower(0);
+    }
+
+    //Move robot to (destx, desty)
     public void moveTo(double destx, double desty) {
         double xdif = destx - x;
         double ydif = desty - y;
@@ -128,33 +228,39 @@ public class StoneLeft extends LinearOpMode {
         }
         telemetry.addData("Degree of Rotation", "{%.2f}", angRot);
         telemetry.update();
-        turn(angRot);
+        turn(angRot, 0);
         advance(distance(x, y, destx, desty));
         x = destx;
         y = desty;
     }
-    public void turn(double rotToAng) {
-        setPower(0.5);
+
+
+    //Turn to rotToAng
+    public void turn(double rotToAng, int level) {
+        if(level >= 2) {
+            return;
+        }
         double angDif = rotToAng - angle;
-        if(angDif < 0){
+        if (angDif < 0) {
             angDif += 360;
         }
-        if(angDif > 180) {
+        if (angDif > 180) {
             angDif -= 360;
             angDif *= -1;
             dirLeft();
-        }else {
+        } else {
             dirRight();
         }
         setPower(0.5);
-        double waitTime = angDif / 95 * 1000;
+        double waitTime = angDif / degreesTurnPerSec * 1000;
         angle = rotToAng;
         sleep((long)waitTime);
         setPower(0);
-        sleep(2000);
+        sleep(1000);
         Orientation angles = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES);
         float actualAngle = angles.firstAngle;
         actualAngle = 360 - actualAngle;
+        actualAngle += startangle;
         if(actualAngle >= 360){
             actualAngle -= 360;
         }
@@ -163,13 +269,13 @@ public class StoneLeft extends LinearOpMode {
         if(correction < 5 || correction > 355) {
             return;
         }else{
-            turn(rotToAng);
+            turn(rotToAng, level + 1);
         }
     }
     public void advance(double distance) {
         dirForward();
-        setPower(0.5);
-        double waitTime = distance / 13 * 1000;
+        setPower(1);
+        double waitTime = distance / inchesAdvancePerSec * 1000;
         sleep((long)waitTime);
         setPower(0);
     }
@@ -197,13 +303,32 @@ public class StoneLeft extends LinearOpMode {
         backLeft.setDirection(DcMotor.Direction.REVERSE);
         backRight.setDirection(DcMotor.Direction.FORWARD);
     }
-    public void strafe() {
+    public void dirStrafeRight() {
         frontLeft.setDirection(DcMotor.Direction.REVERSE);
         frontRight.setDirection(DcMotor.Direction.REVERSE);
         backLeft.setDirection(DcMotor.Direction.FORWARD);
         backRight.setDirection(DcMotor.Direction.FORWARD);
     }
+    public void dirStrafeLeft() {
+        frontLeft.setDirection(DcMotor.Direction.FORWARD);
+        frontRight.setDirection(DcMotor.Direction.FORWARD);
+        backLeft.setDirection(DcMotor.Direction.REVERSE);
+        backRight.setDirection(DcMotor.Direction.REVERSE);
+    }
     public double distance(double x1, double y1, double x2, double y2) {
         return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+    }
+    public void backadvance(double distance) {
+        dirBackward();
+        setPower(1);
+        double waitTime = distance / inchesAdvancePerSec * 1000;
+        sleep((long)waitTime);
+        setPower(0);
+    }
+    public void dirBackward() {
+        frontLeft.setDirection(DcMotor.Direction.FORWARD);
+        frontRight.setDirection(DcMotor.Direction.REVERSE);
+        backLeft.setDirection(DcMotor.Direction.FORWARD);
+        backRight.setDirection(DcMotor.Direction.REVERSE);
     }
 }
