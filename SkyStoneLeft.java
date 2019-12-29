@@ -85,7 +85,7 @@ public class SkyStoneLeft extends LinearOpMode{
         //Constant initializations
         skystoneColorThreshold = 0;
         distanceBeforeBlocks = 10;
-        inchesStrafePerSec = 28;
+        inchesStrafePerSec = 12;
         degreesTurnPerSec = 80;
         inchesAdvancePerSec = 31;
         edgeToBlocks = 48;
@@ -138,13 +138,6 @@ public class SkyStoneLeft extends LinearOpMode{
         waitForStart();
         runtime.reset();
         if(opModeIsActive()) {
-            /*double red = color_sensor.red();
-            double green = color_sensor.green();
-            double blue = color_sensor.blue();
-            telemetry.addData("Red:", red);
-            telemetry.addData("Green:", green);
-            telemetry.addData("Blue:", blue);
-            telemetry.update();*/
             leftClip.setPosition(1);
             rightClip.setPosition(0);
             double distance = dist_sensor.getDistance(DistanceUnit.INCH);
@@ -155,45 +148,52 @@ public class SkyStoneLeft extends LinearOpMode{
             }
             setPower(0);
             turn(0, 0);
-            //Because coordinates are of center of robot, to have front of robot 3 inches away
+            //Because coordinates are of center of robot, and we want to have front of robot 3 inches away
             //from 48 inches (where the blocks are), it must be at 48 - 8 (half of robot) - 3 = 37 inches
             x = edgeToBlocks - robotLength / 2 - 3;
             strafeAmount(12, 1);
             boolean skystonefound = false;
             //Strafe until detect change in color from yellow to black(skystone color)
-            double starttime = System.currentTimeMillis();
-            setPower(0.25);
-            dirStrafeRight();
             double red = color_sensor.red();
             double green = color_sensor.green();
             double blue = color_sensor.blue();
             double distanceTrav = 0;
+            double starttime = System.currentTimeMillis();
+            //Does a constant strafe in along the blocks until detects color change. When detected
+            //skystonefound becomes true and it strafes until "green <= skystoneColorThreshold,"
+            //or basically until the color changes back to yellow so that the robot will be in the
+            //correct position to grab the block
             while(!skystonefound || green <= skystoneColorThreshold) {
                 setPower(0.25);
                 dirStrafeRight();
+                red = color_sensor.red();
                 green = color_sensor.green();
+                blue = color_sensor.blue();
                 distanceTrav = (System.currentTimeMillis() - starttime) / 1000 * inchesStrafePerSec / 4;
                 if(!skystonefound) {
-                    //We used the red value from color sensor to distinguish skystone color
+                    //We used the rgb values from color sensor to distinguish skystone color
                     if (green <= skystoneColorThreshold) {
                         skystonefound = true;
                         telemetry.addData("Skystone found", 0);
                         telemetry.update();
                     }
                 }
+                telemetry.addData("Green", green);
+                telemetry.update();
             }
+            setPower(0);
             if(skystonefound) {
+                telemetry.addData("Ready to grab", 0);
+                telemetry.update();
                 y += distanceTrav;
             }
-            telemetry.addData("Current y value: ", y);
-            sleep(3000);
             advance(18);
             x += 18;
             leftClip.setPosition(0);
             rightClip.setPosition(1);
             sleep(1500);
             moveTo(12, y);
-            moveTo(36, 65);
+            moveTo(12, 65);
             turn(270, 0);
         }
     }
@@ -207,7 +207,7 @@ public class SkyStoneLeft extends LinearOpMode{
             dirStrafeRight();
             y += inchesStrafe;
         }
-        setPower(1);
+        setPower(0.5);
         double timeWait = inchesStrafe / inchesStrafePerSec * 1000;
         sleep((long)timeWait);
         setPower(0);
@@ -272,6 +272,7 @@ public class SkyStoneLeft extends LinearOpMode{
             turn(rotToAng, level + 1);
         }
     }
+    //Advance forward distance
     public void advance(double distance) {
         dirForward();
         setPower(1);
@@ -279,12 +280,27 @@ public class SkyStoneLeft extends LinearOpMode{
         sleep((long)waitTime);
         setPower(0);
     }
+    public double distance(double x1, double y1, double x2, double y2) {
+        return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+    }
+    //Advance backwards distance
+    public void backadvance(double distance) {
+        dirBackward();
+        setPower(1);
+        double waitTime = distance / inchesAdvancePerSec * 1000;
+        sleep((long)waitTime);
+        setPower(0);
+    }
+    //Sets motor power
     public void setPower(double power){
         frontLeft.setPower(power);
         frontRight.setPower(power);
         backLeft.setPower(power);
         backRight.setPower(power);
     }
+
+    //All dir functions below sets the motor directions
+
     public void dirLeft() {
         frontLeft.setDirection(DcMotor.Direction.FORWARD);
         frontRight.setDirection(DcMotor.Direction.FORWARD);
@@ -314,16 +330,6 @@ public class SkyStoneLeft extends LinearOpMode{
         frontRight.setDirection(DcMotor.Direction.FORWARD);
         backLeft.setDirection(DcMotor.Direction.REVERSE);
         backRight.setDirection(DcMotor.Direction.REVERSE);
-    }
-    public double distance(double x1, double y1, double x2, double y2) {
-        return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
-    }
-    public void backadvance(double distance) {
-        dirBackward();
-        setPower(1);
-        double waitTime = distance / inchesAdvancePerSec * 1000;
-        sleep((long)waitTime);
-        setPower(0);
     }
     public void dirBackward() {
         frontLeft.setDirection(DcMotor.Direction.FORWARD);
