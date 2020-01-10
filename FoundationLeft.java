@@ -65,9 +65,6 @@ public class FoundationLeft extends LinearOpMode {
     private DcMotor backRight = null;
     Servo leftClip = null;
     Servo rightClip = null;
-    //DcMotor vert_motor = null;
-    //DcMotor horz_motor = null;
-    //Servo armservo = null;
     double startangle, angle;
     double x, y, fieldwidth, fieldlength;
     double skystoneColorThreshold, distanceBeforeBlocks, inchesStrafePerSec, degreesTurnPerSec, inchesAdvancePerSec, edgeToBlocks, robotWidth, robotLength;

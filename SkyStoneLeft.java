@@ -66,14 +66,11 @@ public class SkyStoneLeft extends LinearOpMode{
     private DcMotor frontRight = null;
     private DcMotor backLeft = null;
     private DcMotor backRight = null;
-    Servo leftClip = null;
-    Servo rightClip = null;
-    //DcMotor vert_motor = null;
-    //DcMotor horz_motor = null;
-    //Servo armservo = null;
     double startangle, angle;
     double x, y, fieldwidth, fieldlength;
     double skystoneColorThreshold, distanceBeforeBlocks, inchesStrafePerSec, degreesTurnPerSec, inchesAdvancePerSec, edgeToBlocks, robotWidth, robotLength;
+    Servo armservo;
+    DcMotor armmotor, armmotor2;
     ColorSensor color_sensor;
     DistanceSensor dist_sensor;
     BNO055IMU imu;
@@ -84,7 +81,7 @@ public class SkyStoneLeft extends LinearOpMode{
 
         //Constant initializations
         skystoneColorThreshold = 0;
-        distanceBeforeBlocks = 10;
+        distanceBeforeBlocks = 12;
         inchesStrafePerSec = 12;
         degreesTurnPerSec = 80;
         inchesAdvancePerSec = 31;
@@ -107,13 +104,10 @@ public class SkyStoneLeft extends LinearOpMode{
         backLeft = hardwareMap.get(DcMotor.class, "back_left");
         backRight = hardwareMap.get(DcMotor.class, "back_right");
         color_sensor = hardwareMap.get(ColorSensor.class,"clr");
-        leftClip = hardwareMap.get(Servo.class, "left_clip");
-        rightClip = hardwareMap.get(Servo.class, "right_clip");
-        //vert_motor = hardwareMap.get(DcMotor.class, "vert_motor");
-        //horz_motor = hardwareMap.get(DcMotor.class, "horz_motor");
-        //armservo = hardwareMap.get(Servo.class, "arm_servo");
+        armservo = hardwareMap.get(Servo.class, "arm_servo");
+        armmotor = hardwareMap.get(DcMotor.class, "arm_motor");
+        armmotor2 = hardwareMap.get(DcMotor.class, "arm_motor2");
         dist_sensor = hardwareMap.get(DistanceSensor.class, "distance");
-
 
         //Gyro initialization
         BNO055IMU.Parameters parameters = new BNO055IMU.Parameters();
@@ -138,19 +132,17 @@ public class SkyStoneLeft extends LinearOpMode{
         waitForStart();
         runtime.reset();
         if(opModeIsActive()) {
-            leftClip.setPosition(1);
-            rightClip.setPosition(0);
+            armservo.setPosition(0);
             double distance = dist_sensor.getDistance(DistanceUnit.INCH);
             dirForward();
+            //Need to stop robot before the blocks
             while(distance > distanceBeforeBlocks) {
                 setPower(1);
                 distance = dist_sensor.getDistance(DistanceUnit.INCH);
             }
             setPower(0);
             turn(0, 0);
-            //Because coordinates are of center of robot, and we want to have front of robot 3 inches away
-            //from 48 inches (where the blocks are), it must be at 48 - 8 (half of robot) - 3 = 37 inches
-            x = edgeToBlocks - robotLength / 2 - 3;
+            x = edgeToBlocks - robotLength / 2 - 6;
             strafeAmount(12, 1);
             boolean skystonefound = false;
             //Strafe until detect change in color from yellow to black(skystone color)
@@ -187,17 +179,33 @@ public class SkyStoneLeft extends LinearOpMode{
                 telemetry.update();
                 y += distanceTrav;
             }
-            advance(18);
-            x += 18;
-            leftClip.setPosition(0);
-            rightClip.setPosition(1);
-            sleep(1500);
-            moveTo(12, y);
-            moveTo(12, 65);
+            armDown();
+            sleep(300);
+            armservo.setPosition(1);
+            turn(0, 0);
+            backadvance(x - 12);
             turn(270, 0);
+            advance(y - 72);
         }
     }
-
+    public void armDown() {
+        armmotor.setDirection(DcMotor.Direction.REVERSE);
+        armmotor2.setDirection(DcMotor.Direction.FORWARD);
+        armmotor.setPower(0.5);
+        armmotor2.setPower(0.5);
+        sleep(300);
+        armmotor.setPower(0);
+        armmotor2.setPower(0);
+    }
+    public void armUp() {
+        armmotor.setDirection(DcMotor.Direction.FORWARD);
+        armmotor2.setDirection(DcMotor.Direction.REVERSE);
+        armmotor.setPower(0.5);
+        armmotor2.setPower(0.5);
+        sleep(700);
+        armmotor.setPower(0);
+        armmotor2.setPower(0);
+    }
     //Strafes inches in certain direction. 0 means right while 1 means left
     public void strafeAmount(double inchesStrafe, int direction) {
         if(direction == 1) {
@@ -251,7 +259,7 @@ public class SkyStoneLeft extends LinearOpMode{
         } else {
             dirRight();
         }
-        setPower(0.5);
+        setPower(0.25);
         double waitTime = angDif / degreesTurnPerSec * 1000;
         angle = rotToAng;
         sleep((long)waitTime);
