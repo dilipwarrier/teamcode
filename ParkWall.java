@@ -58,8 +58,8 @@ import org.firstinspires.ftc.robotcore.external.navigation.Velocity;
 //ALL MEASUREMENTS IN INCHES
 
 
-@Autonomous(name="FoundationRight", group="Linear Opmode")
-public class FoundationRight extends LinearOpMode{
+@Autonomous(name="ParkWall", group="Linear Opmode")
+public class ParkWall extends LinearOpMode{
 
     private ElapsedTime runtime = new ElapsedTime();
     private DcMotor frontLeft = null;
@@ -68,7 +68,7 @@ public class FoundationRight extends LinearOpMode{
     private DcMotor backRight = null;
     double startangle, angle;
     double x, y, fieldwidth, fieldlength;
-    double skystoneColorThreshold, distanceBeforeBlocks, inchesStrafePerSec, degreesTurnPerSec, inchesAdvancePerSec, edgeToBlocks, robotWidth, robotLength;
+    double skystoneColorThreshold, inchesStrafePerSec, degreesTurnPerSec, inchesAdvancePerSec, edgeToBlocks, robotWidth, robotLength;
     Servo armservo;
     DcMotor armmotor, armmotor2;
     ColorSensor color_sensor;
@@ -81,8 +81,7 @@ public class FoundationRight extends LinearOpMode{
 
 
         //Constant initializations
-        skystoneColorThreshold = 0;
-        distanceBeforeBlocks = 11;
+        skystoneColorThreshold = 30;
         inchesStrafePerSec = 27;
         degreesTurnPerSec = 80;
         inchesAdvancePerSec = 31;
@@ -94,10 +93,10 @@ public class FoundationRight extends LinearOpMode{
 
 
         //Coordinate reference frame initialization
-        angle = 180;
+        angle = 0;
         startangle = angle;
-        x = 144 - robotLength / 2;
-        y = 36;
+        x = robotLength / 2;
+        y = 108;
         fieldwidth = 144;
         fieldlength = 144;
 
@@ -135,27 +134,74 @@ public class FoundationRight extends LinearOpMode{
         waitForStart();
         runtime.reset();
         if(opModeIsActive()) {
-            pullFoundation();
+            advance(12);
         }
     }
-    public void pullFoundation() {
-        advance(15);
-        strafeAmount(13, 0);
-        y = 22;
+    public void grabSkystone() {
         double distance = dist_sensor.getDistance(DistanceUnit.INCH);
         dirForward();
-        while(distance > 5) {
+        //Need to stop robot before the blocks
+        while(distance > 12) {
             setPower(1);
             distance = dist_sensor.getDistance(DistanceUnit.INCH);
         }
-        x = 144 - (48 - robotLength / 2);
-        turn(180, 0);
+        setPower(0);
+        turn(0, 0);
+        x = edgeToBlocks - robotLength / 2 - 3;
+        strafeAmount(12, 1, 0.5);
+        boolean skystonefound = false;
+        //Strafe until detect change in color from yellow to black(skystone color)
+        double red = color_sensor.red();
+        double green = color_sensor.green();
+        double blue = color_sensor.blue();
+        double distanceTrav = 0;
+        double starttime = System.currentTimeMillis();
+        //Does a constant strafe in along the blocks until detects color change. When detected
+        //skystonefound becomes true and it strafes until "green <= skystoneColorThreshold,"
+        //or basically until the color changes back to yellow so that the robot will be in the
+        //correct position to grab the block
+        while(!skystonefound || red <= skystoneColorThreshold) {
+            setPower(0.25);
+            dirStrafeRight();
+            red = color_sensor.red();
+            green = color_sensor.green();
+            blue = color_sensor.blue();
+            distanceTrav = (System.currentTimeMillis() - starttime) / 1000 * inchesStrafePerSec / 4;
+            if(!skystonefound) {
+                //We used the rgb values from color sensor to distinguish skystone color
+                if (red <= skystoneColorThreshold) {
+                    skystonefound = true;
+                    telemetry.addData("Skystone found", 0);
+                    telemetry.update();
+                    //break;
+                }else if(distanceTrav > 24) {
+                    skystonefound = true;
+                }
+            }
+
+            telemetry.addData("Green", green);
+            telemetry.update();
+        }
+        setPower(0);
+        if(skystonefound) {
+            telemetry.addData("Ready to grab", 0);
+            telemetry.update();
+            y += distanceTrav;
+        }
         armDown();
+        turn(0, 0);
+        advance(1);
         sleep(500);
-        backadvance(x + 10);
-        x = 144;
-        armUp();
-        strafeAmount(75 - y, 1);
+        armservo.setPosition(1);
+        sleep(1500);
+        backadvance(4);
+        x = 40 - robotWidth / 2;
+        turn(270, 0);
+        advance(y - 55);
+        y = 60;
+        armservo.setPosition(0);
+        sleep(1000);
+        backadvance(12);
     }
     public void armDown() {
         armmotor.setDirection(DcMotor.Direction.REVERSE);
@@ -176,7 +222,7 @@ public class FoundationRight extends LinearOpMode{
         armmotor2.setPower(0);
     }
     //Strafes inches in certain direction. 0 means right while 1 means left
-    public void strafeAmount(double inchesStrafe, int direction) {
+    public void strafeAmount(double inchesStrafe, int direction, double pow) {
         if(direction == 1) {
             dirStrafeLeft();
             y -= inchesStrafe;
@@ -184,8 +230,8 @@ public class FoundationRight extends LinearOpMode{
             dirStrafeRight();
             y += inchesStrafe;
         }
-        setPower(1);
-        double timeWait = inchesStrafe / inchesStrafePerSec * 1000;
+        setPower(pow);
+        double timeWait = inchesStrafe / (pow == 1 ? inchesStrafePerSec : inchesStrafePerSec / 2) * 1000;
         sleep((long)timeWait);
         setPower(0);
     }
